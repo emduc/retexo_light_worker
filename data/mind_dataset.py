@@ -2,7 +2,6 @@ import random
 from omegaconf import DictConfig
 import torch
 from torch.utils.data import Dataset, DataLoader
-import tqdm
 import os
 import time
 import json
@@ -10,11 +9,11 @@ import numpy as np
 import dgl
 from dgl import save_graphs, load_graphs
 from dgl.data import DGLDataset
-from dgl.data.utils import save_info, load_info, get_download_dir
+from dgl.data.utils import save_info, load_info
 import pandas as pd
 from sentence_transformers import SentenceTransformer
 
-from data.utils.mind_utils import seq_list, seq_numpy, unseq_list, unseq_numpy
+from data.utils.mind_utils import seq_list, unseq_list
 from data.utils.mind_utils import load_MIND, get_news_list, get_user_news_link, get_news_entity_link, tokenize_news, building_training_dataset, node2vec
 
 
