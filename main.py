@@ -8,14 +8,8 @@ import torch
 import torch.multiprocessing as mp
 from omegaconf import DictConfig, OmegaConf
 
-from data.dataset import load_data, graph_partition, rel_graph_partition, load_partition, load_user_item_data
-import trainers.fedgnn_trainer
-import trainers.pos_neg_hetero_trainer
+from data.dataset import load_data
 import trainers.pos_neg_hetero_trainer_networking
-import trainers.trainer
-import trainers.rel_trainer
-import trainers.user_item_trainer
-
 
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives import serialization
