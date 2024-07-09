@@ -35,8 +35,6 @@ from comm_utils import (
     MultiThreadReducerCentralized,
 )
 
-import models.pinsage_sampler as sampler_module
-
 logger = logging.getLogger(__name__)
 comm_volume_perf_store = PerformanceStore()
 
@@ -648,6 +646,7 @@ def init_process(rank, world_size, cfg, hydra_output_dir):
         world_size=world_size
     )
 
+    print("Connection established with master node.")
     seed_everything(cfg.seed)
     
     # central version for now

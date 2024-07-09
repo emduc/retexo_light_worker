@@ -5,8 +5,8 @@ retexo: true
 custom_note: "none"
 dataset_name: "mind"
 mind_version: "small"
-dataset_dir: ../retexo-datasets
-partition_dir: ../retexo-datasets/partitions/
+dataset_dir: ./datasets
+partition_dir: ./datasets/partitions/
 partition_method: "random"
 train_sampler: "MultiLayerFull"
 part_obj: "vol"
@@ -37,7 +37,7 @@ print_all: false
 best_model: true
 node_rank: 0
 parts_per_node: 4
-device: "cuda"
+device: "cpu"
 measure_dv: false
 sleep_time: 0.0
 cache_size: 5
@@ -83,8 +83,8 @@ optimizer:
 distributed:
   backend: "gloo"
   init_method: "tcp://"
-  master_addr: ec2-3-145-55-42.us-east-2.compute.amazonaws.com
-  master_port: "10112"
+  master_addr: 127.0.0.1
+  master_port: "10100"
 
 task:
   _target_: tasks.node_classification.NodeClassificationTask

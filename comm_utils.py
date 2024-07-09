@@ -5,9 +5,7 @@ from multiprocessing.pool import ThreadPool
 import time
 import dgl # type: ignore
 from dgl.distributed import GraphPartitionBook # type: ignore
-from relbench.external.graph import get_node_train_table_input, make_pkey_fkey_graph, NodeTrainTableInput
-from torch_geometric.distributed.local_feature_store import LocalFeatureStore
-from torch_geometric.distributed.local_graph_store import LocalGraphStore
+
 from torch_geometric.data import HeteroData
 import os
 
@@ -15,9 +13,6 @@ import torch.distributed as dist
 import torch
 import torch.nn as nn
 import numpy as np
-
-from torch_frame import stype
-
 
 from cryptography.hazmat.primitives.asymmetric import rsa, padding
 from cryptography.hazmat.primitives import hashes, serialization
@@ -383,18 +378,18 @@ class MultiThreadReducerCentralized:
         #     cnt+=1
         #     self._group[name] = dist.new_group()
         # self.thread_pool = ThreadPool(processes=cnt)
-        self._stream = torch.cuda.Stream(device='cuda')
+        # self._stream = torch.cuda.Stream(device='cuda')
         self.measure_comm = measure_comm
         self.comm_vol_store = perf_store
         self.pubkey = pubkey
         
-        # TODO (for local tests)
-        with open("private_key.pem", "rb") as private_file:
-            self.private_key = serialization.load_pem_private_key(
-                private_file.read(),
-                password=None,
-                backend=default_backend()
-            )
+        # (for local tests)
+        # with open("private_key.pem", "rb") as private_file:
+        #     self.private_key = serialization.load_pem_private_key(
+        #         private_file.read(),
+        #         password=None,
+        #         backend=default_backend()
+        #     )
 
     def _reduce(self, rank, world_size, param, name):
         def create_stream():

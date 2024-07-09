@@ -62,10 +62,11 @@ def main(cfg: DictConfig) -> None:
                     if "CUDA_VISIBLE_DEVICES" in os.environ:
                         devices = os.environ["CUDA_VISIBLE_DEVICES"].split(",")
                         n_devices = len(devices)
-                        
-                    torch.multiprocessing.set_start_method('spawn')
                     os.environ["CUDA_VISIBLE_DEVICES"] = devices[0]
+                    
+                torch.multiprocessing.set_start_method('spawn')
                 # master_p = mp.Process(target=train.init_master, args=(cfg, hydra_output_dir))
+
                 worker_p = mp.Process(target=train.init_process, args=(1, cfg.num_partitions + 1, cfg, hydra_output_dir))
                 
                 # master_p.start()
