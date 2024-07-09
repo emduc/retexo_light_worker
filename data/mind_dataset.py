@@ -600,7 +600,7 @@ class MIND_DGL(DGLDataset):
         )
         pos_dataloader = DataLoader(pos_collator.dataset, collate_fn=pos_collator.collate,
                                     batch_size=len(pos_collator.dataset), shuffle=False,
-                                    drop_last=False,  num_workers=1)
+                                    drop_last=False,  num_workers=0)
                                     # batch_size=hparams['batch_size'], shuffle=False,
 
         neg_collator = dgl.dataloading.EdgeCollator(
@@ -608,7 +608,7 @@ class MIND_DGL(DGLDataset):
         )
         neg_dataloader = DataLoader(neg_collator.dataset, collate_fn=neg_collator.collate,
                                     batch_size=len(neg_collator.dataset) * self.cfg['gnn_neg_ratio'], shuffle=False,
-                                    drop_last=False,  num_workers=1)
+                                    drop_last=False,  num_workers=0)
                                     # batch_size=hparams['batch_size'] * hparams['gnn_neg_ratio'], 
                                     
         return pos_dataloader, neg_dataloader
@@ -616,7 +616,7 @@ class MIND_DGL(DGLDataset):
     def get_dev_session_loader(self, shuffle):
         dev_dataset = SessionDataset(self._dev_session_positive, self._dev_session_negative)
         # shuffle=False if Decaying is activted
-        return DataLoader(dev_dataset, batch_size=1, shuffle=shuffle, num_workers=1)
+        return DataLoader(dev_dataset, batch_size=1, shuffle=shuffle, num_workers=0)
     
     def get_val_session_loader(self, size):
         if self._indices == None:
@@ -624,7 +624,7 @@ class MIND_DGL(DGLDataset):
         dev_dataset = SessionDataset([self._dev_session_positive[i] for i in self._indices], [self._dev_session_negative[i] for i in self._indices])
         
         # shuffle=False if Decaying is activted
-        return DataLoader(dev_dataset, batch_size=1, shuffle=True, num_workers=1)
+        return DataLoader(dev_dataset, batch_size=1, shuffle=True, num_workers=0)
 
     def get_gnn_dev_node_loader(self, etypes, num_layers):  # Dev - for Generate Node Representations
         pos_edges = torch.Tensor(list(range(self._num_link['pos_dev_r']))).type(torch.int32)
@@ -643,11 +643,11 @@ class MIND_DGL(DGLDataset):
         
         user_dataloader = torch.utils.data.DataLoader(
             user_collator.dataset, collate_fn=user_collator.collate,
-            batch_size=len(user_collator.dataset), shuffle=True, drop_last=False, num_workers=1
+            batch_size=len(user_collator.dataset), shuffle=True, drop_last=False, num_workers=0
         )
         news_dataloader = torch.utils.data.DataLoader(
             news_collator.dataset, collate_fn=news_collator.collate,
-            batch_size=len(news_collator.dataset), shuffle=True, drop_last=False, num_workers=1
+            batch_size=len(news_collator.dataset), shuffle=True, drop_last=False, num_workers=0
         )
         return user_dataloader, news_dataloader
 
