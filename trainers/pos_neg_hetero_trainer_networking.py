@@ -396,20 +396,31 @@ def train_embedding_layer(model, dataset, cfg, device, log_dir, opt, pos_sample_
         
     print("Starting training retexo, Layer 0...")
     for i in range(cfg.num_rounds[0]):
+        print("Training mode")
         model.train()
         
+        print("start time")
         iter_start_time = time.time()
         
+        print("moving to device")
         pos_sample_graph = pos_sample_graph.to(device)
+        print("moving each block to device")
         pos_blocks = [b.to(device) for b in pos_blocks]
+        print("call model on pos edges")
         pos_scores, pos_output_features, _ = model(pos_sample_graph, pos_blocks, ('user', 'pos_train', 'news'))
+        print("moving to device")
         neg_sample_graph = neg_sample_graph.to(device)
+        print("moving each block to device")
         neg_blocks = [b.to(device) for b in neg_blocks]
+        print("call model on neg edges")
         neg_scores, neg_output_features, _ = model(neg_sample_graph, neg_blocks, ('user', 'neg_train', 'news'))
 
+        print("cat predictions")
         pred = torch.cat([pos_scores.unsqueeze(1), neg_scores.reshape(-1, cfg['gnn_neg_ratio'])], dim=1)
+        print("score")
         score_diff = (F.sigmoid(pred)[:, 0] - F.sigmoid(pred)[:, 0:].mean(dim=1)).mean()
         
+        print("loss")
         if cfg['loss_func'] == 'log_sofmax':
             pred_loss = (-torch.log_softmax(pred, dim=1).select(1, 0)).mean()
         elif cfg['loss_func'] == 'cross_entropy':
@@ -422,6 +433,7 @@ def train_embedding_layer(model, dataset, cfg, device, log_dir, opt, pos_sample_
         wandb.log({f"train loss": loss}, step=(i + 1))
         wandb.log({f"score diff": score_diff}, step=(i + 1))
         
+        print("backward")
         opt.zero_grad()
         loss.backward()
         
@@ -433,9 +445,11 @@ def train_embedding_layer(model, dataset, cfg, device, log_dir, opt, pos_sample_
                 "total": dataset.num_node[t],
             }
         
+        print("secure aggr")
         with torch.no_grad():
             reducer.secure_aggregation(model, ["user, news"], i)
-            
+           
+        print("step")
         opt.step()
         
         if  (i + 1) % cfg.log_every == 0:
