@@ -19,7 +19,7 @@ loss_func: "cross_entropy"
 num_rounds: [20, 20, 20]
 early_stop: 50
 layer_early_stop: [500, 500, 500]
-gnn_neg_ratio: 4
+gnn_neg_ratio: 1
 gnn_kl_weight: 0
 local_epochs: 1
 learning_rate: [5e-4, 1e-3, 1e-3]
