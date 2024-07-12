@@ -1,4 +1,4 @@
-# Made on 08-07-2024 using python 3.9.16
+# Made on 08-07-2024 using python 3.9.16 for CPU training
 
 # Direct links to package files or directories
 --find-links https://data.dgl.ai/wheels/torch-2.1/repo.html

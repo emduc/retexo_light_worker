@@ -178,9 +178,14 @@ def train_retexo(model, dataset, cfg, device, log_dir, hydra_output_dir, base_et
         model.load_state_dict(best_model)
     model.eval()
     with torch.no_grad():
+        # TODO Send the embeddings and item request to the master (use dst_nodes())
+        # TODO make a single *item request* to the master for all blocks
+        # TODO receive items and store "per block"
+        
+        
         # # encoding the eval features 
-        eval_user_features = [model.encode(val_user_blocks, encode_source=True)]#['user'].cpu()]
-        eval_news_features = [model.encode(val_news_blocks, encode_source=True)]#['news'].cpu()]
+        eval_user_features = [model.encode(val_user_blocks, encode_source=True)]
+        eval_news_features = [model.encode(val_news_blocks, encode_source=True)]
         
         middle_user_features = model.encode(val_user_blocks[1:], encode_source=True)
         middle_news_features = model.encode(val_news_blocks[1:], encode_source=True)
@@ -192,6 +197,7 @@ def train_retexo(model, dataset, cfg, device, log_dir, hydra_output_dir, base_et
         final_neg_sample_graph = final_neg_sample_graph.to(device)
         all_neg_blocks = [b.to(device) for b in all_neg_blocks]
         final_neg_features = [model.encode(all_neg_blocks,encode_source=True)]
+        
         
         # encoding training features for next layer
         pos_features = model.encode(pos_blocks, encode_source=True)
