@@ -11,6 +11,9 @@ from dgl import save_graphs, load_graphs
 from dgl.data import DGLDataset
 from dgl.data.utils import save_info, load_info
 import pandas as pd
+import s3fs
+import glob
+import pickle
 from sentence_transformers import SentenceTransformer
 
 from data.utils.mind_utils import seq_list, unseq_list
@@ -285,7 +288,8 @@ class MIND_DGL(DGLDataset):
             self._graph.edges['neg_train_r'].data['Time'].shape)
         self._graph.edges['neg_dev_r'].data['Label'] = torch.zeros(
             self._graph.edges['neg_dev_r'].data['Time'].shape)
-        
+    
+    
     def process_hetero_div(self):
         r"""
         initial process method from the paper. 
@@ -504,13 +508,78 @@ class MIND_DGL(DGLDataset):
             self._graph.edges['neg_train_r'].data['Time'].shape)
         self._graph.edges['neg_dev_r'].data['Label'] = torch.zeros(
             self._graph.edges['neg_dev_r'].data['Time'].shape)
+        
+    def save_partition(self, sub_graph, id_map, edge_id_map, partition_dir):
+        num_nodes = {ntype: sub_graph.num_nodes(ntype) for ntype in sub_graph.ntypes}
+        num_links = {etype: sub_graph.num_edges(etype) for etype in sub_graph.etypes}
+        
+        reverse_edge_map = {k: {value: key for key, value in v.items()} for k, v in edge_id_map.items()}
+        
+        part_dev_session_positive = [
+            [reverse_edge_map["pos_dev_r"][eid] for eid in pos_links if eid in reverse_edge_map["pos_dev_r"]]
+            for pos_links in self._dev_session_positive
+            if all(eid in reverse_edge_map["pos_dev_r"] for eid in pos_links)
+        ]
+        
+        part_dev_session_negative = [
+            [reverse_edge_map["neg_dev_r"][eid] for eid in neg_links  if eid in reverse_edge_map["neg_dev_r"]]
+            for neg_links in self._dev_session_negative
+            if all(eid in reverse_edge_map["neg_dev_r"] for eid in neg_links)
+        ]
+        
+        part_train_sessions_positive = [
+            [reverse_edge_map["pos_train"][eid] for eid in pos_links if eid in reverse_edge_map["pos_train"]]
+            for pos_links in self._train_session_positive
+            if all(eid in reverse_edge_map["pos_train"] for eid in pos_links)
+        ]
+        part_train_sessions_negative = [
+            [reverse_edge_map["neg_train"][eid] for eid in neg_links if eid in reverse_edge_map["neg_train"]]
+            for neg_links in self._train_session_negative
+            if all(eid in reverse_edge_map["neg_train"] for eid in neg_links)
+        ]
+        
+        graph_path = partition_dir + \
+            '/graph_{}.json'.format(self.cfg['mind_version'])
+        save_info = partition_dir + \
+            '/info_{}.json'.format(self.cfg['mind_version'])
+            
+        if "s3://" in partition_dir:
+            fs = s3fs.S3FileSystem(anon=False)
+            
+            save_graphs("temp.json", [sub_graph])
+            fs.put("temp.json", graph_path)
+            
+            info = {
+                'num_node': json.dumps(num_nodes),
+                'num_link': json.dumps(num_links),
+                'reverse_etypes': json.dumps(self._reverse_etypes),
+                'train_session_positive': seq_list(part_train_sessions_positive),
+                'train_session_negative': seq_list(part_train_sessions_negative),
+                'dev_session_positive': seq_list(part_dev_session_positive),
+                'dev_session_negative': seq_list(part_dev_session_negative),
+                'id_map': json.dumps(id_map),
+            }
+            pickle.dump(info, fs.open(save_info, 'wb'))
+            
+        else:
+            save_graphs(graph_path, [sub_graph])
+            save_info(save_info, {
+                'num_node': json.dumps(num_nodes),
+                'num_link': json.dumps(num_links),
+                'reverse_etypes': json.dumps(self._reverse_etypes),
+                'train_session_positive': seq_list(part_train_sessions_positive),
+                'train_session_negative': seq_list(part_train_sessions_negative),
+                'dev_session_positive': seq_list(part_dev_session_positive),
+                'dev_session_negative': seq_list(part_dev_session_negative),
+                'id_map': json.dumps(id_map),
+            })   
+        
 
     def save(self):
         r"""
         保存图和标签
         """
         save_graphs(self._graph_path, [self._graph])
-        # 在Python字典里保存其他信息
         save_info(self._save_info, {
             'num_node': json.dumps(self._num_node),
             'num_link': json.dumps(self._num_link),
@@ -519,10 +588,6 @@ class MIND_DGL(DGLDataset):
             'train_session_negative': seq_list(self._train_session_negative),
             'dev_session_positive': seq_list(self._dev_session_positive),
             'dev_session_negative': seq_list(self._dev_session_negative),
-            'user': '\n'.join(self._user),
-            'news': '\n'.join(self._news),
-            # 'word': '\n'.join(self._word),
-            # 'entity': '\n'.join(str(m) for m in self._entity),
         })
 
     def load(self):
@@ -539,10 +604,9 @@ class MIND_DGL(DGLDataset):
         self._train_session_negative = unseq_list(info['train_session_negative'])
         self._dev_session_positive = unseq_list(info['dev_session_positive'])
         self._dev_session_negative = unseq_list(info['dev_session_negative'])
-        self._user = info['user'].split('\n')
-        self._news = info['news'].split('\n')
-        # self._word = info['word'].split('\n')
-        # self._entity = [int(m) for m in info['entity'].split('\n')]
+        if 'id_map' in info:
+            self._id_map = json.loads(info['id_map'])
+   
 
     def has_cache(self):
         # 检查在 `self.save_path` 里是否有处理过的数据文件

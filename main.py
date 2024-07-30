@@ -8,7 +8,8 @@ import torch
 import torch.multiprocessing as mp
 from omegaconf import DictConfig, OmegaConf
 
-from data.dataset import load_data
+from data.dataset import load_data, create_partitions
+from topics import compute_topics, eval_user_topics
 import trainers.pos_neg_hetero_trainer_networking
 
 from cryptography.hazmat.primitives.asymmetric import rsa
@@ -47,10 +48,15 @@ def main(cfg: DictConfig) -> None:
     #             format=serialization.PublicFormat.SubjectPublicKeyInfo
     #         )
     #     )
-
     if cfg.app == "partition_data":
         graph, _= load_data(**cfg.dataset.download, cfg=cfg)
         return
+    elif cfg.app == "compute_topics":
+        topics_df = compute_topics(cfg)
+    elif cfg.app == "eval_user_topics":
+        results = eval_user_topics(cfg)
+    elif cfg.app == "create_partitions":
+        create_partitions(cfg)
     elif cfg.app == "hetero_pos_neg_train":
         if cfg.federated:
             train = trainers.pos_neg_hetero_trainer_networking

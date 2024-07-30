@@ -160,7 +160,7 @@ def train_retexo(model, dataset, cfg, device, log_dir, hydra_output_dir, base_et
 
     # validation blocks
     user_dataloader, news_dataloader = dataset.get_gnn_dev_node_loader(base_etypes, cfg.num_layers)
-    (__annotations__, _, user_blocks) = next(iter(user_dataloader))
+    (_, _, user_blocks) = next(iter(user_dataloader))
     val_user_blocks = [b.to(device) for b in user_blocks]
     (_, _, news_blocks) = next(iter(news_dataloader))
     val_news_blocks = [b.to(device) for b in news_blocks]

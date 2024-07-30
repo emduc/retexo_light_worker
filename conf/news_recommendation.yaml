@@ -1,16 +1,17 @@
 # default configuration
 
-app: "hetero_pos_neg_train" # hetero_pos_neg_train, partition_data
+app: "create_partitions" # hetero_pos_neg_train, partition_data, eval_user_topics, compute_topics
 retexo: true
 custom_note: "none"
 dataset_name: "mind"
 mind_version: "small"
 dataset_dir: ./datasets
 partition_dir: ./datasets/partitions/
+s3_bucket: "s3://mind-central"
 partition_method: "random"
 train_sampler: "MultiLayerFull"
-part_obj: "vol"
-num_partitions: 1
+# part_obj: "vol"
+num_partitions: 2
 num_layers: 2
 hidden_dim: 128
 feat_hidden: 128
@@ -23,7 +24,7 @@ gnn_neg_ratio: 4
 gnn_kl_weight: 0
 local_epochs: 1
 learning_rate: [5e-4, 1e-3, 1e-3]
-momentum: 0.9
+# momentum: 0.9
 weight_decay: 0.0005
 eval_every: [5, 5, 5]
 eval_after: [9, 9, 9]
@@ -35,7 +36,7 @@ seed: 7
 log_every: 10
 print_all: false
 best_model: true
-node_rank: 0
+# node_rank: 0
 parts_per_node: 4
 device: "cpu"
 measure_dv: false
@@ -61,20 +62,20 @@ dataset:
     part_obj: ${part_obj}
     partition_dir: ${partition_dir}
 
-  batching:
-    batch_size: ${batch_size}
-    shuffle: true
-    num_workers: 4
+  # batching:
+  #   batch_size: ${batch_size}
+  #   shuffle: true
+  #   num_workers: 4
 
-model:
-  _target_: models.gnn.SimpleGNN
-  _recursive_: false
-  hidden_dim: ${hidden_dim}
-  n_layers: ${num_layers}
-  dropout: ${dropout}
-  conv_layer:
-    _target_: models.sage.CustomSAGEConv
-    aggregator_type: "mean"
+# model:
+#   _target_: models.gnn.SimpleGNN
+#   _recursive_: false
+#   hidden_dim: ${hidden_dim}
+#   n_layers: ${num_layers}
+#   dropout: ${dropout}
+#   conv_layer:
+#     _target_: models.sage.CustomSAGEConv
+#     aggregator_type: "mean"
 
 optimizer:
   _target_: torch.optim.Adam

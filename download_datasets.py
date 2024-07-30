@@ -1,8 +1,6 @@
 import boto3
 import os 
-
-# Create an S3 client
-s3 = boto3.client('s3')
+import argparse
 
 
 def download_directory_from_s3(bucket, s3_directory, local_directory):
@@ -34,3 +32,17 @@ s3_dir = 'datasets'
 local_dir = './datasets'
 
 download_directory_from_s3(bucket_name, s3_dir, local_dir)
+
+
+def main():
+    parser = argparse.ArgumentParser(description='Download a directory from S3')
+    parser.add_argument('bucket_name', type=str, default="mind-central", help='Name of the S3 bucket')
+    parser.add_argument('--s3_dir', type=str, default='datasets', help='S3 directory to download from. To download partition 0, should be "partitions/0"')
+    parser.add_argument('--local_dir', type=str, default='./datasets', help='Local directory to download to')
+    
+    args = parser.parse_args()
+
+    download_directory_from_s3(args.bucket_name, args.s3_dir, args.local_dir)
+
+if __name__ == "__main__":
+    main()
