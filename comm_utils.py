@@ -379,6 +379,7 @@ class MultiThreadReducerCentralized:
         #     self._group[name] = dist.new_group()
         # self.thread_pool = ThreadPool(processes=cnt)
         # self._stream = torch.cuda.Stream(device='cuda')
+        self.symmetric_key = None
         self.measure_comm = measure_comm
         self.comm_vol_store = perf_store
         self.pubkey = pubkey
@@ -418,76 +419,6 @@ class MultiThreadReducerCentralized:
         self._handles.append(self.thread_pool.apply_async(create_stream))
 
 
-    def _reduce_encrypted(self, rank, world_size, model: nn.Module, shapes, num_elements, name, encrypted_grads_iv_key):
-        def create_stream(shapes, num_elements, name, encrypted_grads_iv_key):
-            self._stream.wait_stream(torch.cuda.current_stream())
-            with torch.cuda.stream(self._stream):
-                group = None#self._group[name]
-                time.sleep(2 * self.sleep_time)
-                encrypted_list = None
-                if rank == 0:
-                    encrypted_list = []
-                    for _ in range(world_size):
-                        # Placeholder tensor for gathering encrypted gradients
-                        encrypted_list.append(torch.zeros_like(encrypted_grads_iv_key))
-
-                # Gather encrypted gradients, IV, and keys
-                dist.gather(encrypted_grads_iv_key, encrypted_list, dst=0, group=group)
-                
-                # Decrypt and aggregate the gradients
-                if rank == 0:
-                    decrypted_list = []
-                    for encrypted in encrypted_list:
-                        encrypted_grads_iv_key = encrypted.numpy()
-                        iv = encrypted_grads_iv_key[-34:-32].tobytes()
-                        encrypted_key = encrypted_grads_iv_key[-32:].tobytes()
-                        encrypted_grads = encrypted_grads_iv_key[:-34] 
-                        
-                        symmetric_key = self.private_key.decrypt(
-                            encrypted_key,
-                            padding.OAEP(
-                                mgf=padding.MGF1(algorithm=hashes.SHA256()),
-                                algorithm=hashes.SHA256(),
-                                label=None
-                            )
-                        )
-                        # Decrypt gradients
-                        cipher = Cipher(algorithms.AES(symmetric_key), modes.CFB(iv), backend=default_backend())
-                        decryptor = cipher.decryptor()
-                        decrypted_bytes = decryptor.update(encrypted_grads.tobytes()) + decryptor.finalize()
-                        decrypted_array = np.frombuffer(decrypted_bytes, dtype=np.float32)
-                        decrypted_list.append(decrypted_array)
-
-                    # Aggregate decrypted gradients
-                    aggregated_grads = np.sum(decrypted_list, axis=0)
-
-                    # Convert aggregated gradients back to tensor and set to param.grad
-                    start = 0
-                    i = 0
-                    for param in model.parameters():
-                        if param.grad is None:
-                            continue
-                        # num_elem = param.grad.numel()
-                        grad_array = aggregated_grads[start:start + num_elements[i]].reshape(shapes[i])
-                        param.grad.copy_(torch.tensor(grad_array).view_as(param.grad))
-                        start += num_elements[i]
-                        i+=1
-
-                # Broadcast the aggregated gradients from rank 0 to all workers
-                for _, param in enumerate(model.parameters()):
-                    if param.grad is not None:
-                        dist.broadcast(param.grad, src=0, group=group)
-
-                if self.measure_comm:
-                    # Add communication volume for gradient reduction
-                    if rank == 0:
-                        cv = 2 * get_comm_size_param(param.grad) * (world_size - 1)
-                    else:
-                        cv = 2 * get_comm_size_param(param.grad)
-                    self.comm_vol_store.add_cv_grad_reduce_t(cv)
-
-        self._handles.append(self.thread_pool.apply_async(create_stream, (shapes, num_elements, name, encrypted_grads_iv_key)))
-
     def aggregate_grad(self, model: nn.Module, num_local_train, num_train):
         """Aggregate the model across workers using thread pool"""
         rank = dist.get_rank()
@@ -515,16 +446,18 @@ class MultiThreadReducerCentralized:
         self._handles.clear()
         torch.cuda.current_stream().wait_stream(self._stream)
         
-    def secure_aggregation(self, model: nn.Module, node_types, round):
+    def secure_aggregation(self, model: nn.Module, node_types, round, perf_store):
         """Aggregate the model across workers using encrypted gradients"""
-        # TODO: Implement secure aggregations
         rank = dist.get_rank()
         world_size = dist.get_world_size()
         
         # create symmetric key for encryption
-        symmetric_key = os.urandom(32)
+        
+        grad_encr_time_s = time.time()
+        if self.symmetric_key is None:
+            self.symmetric_key = os.urandom(32)
         iv = os.urandom(16)
-        cipher = Cipher(algorithms.AES(symmetric_key), modes.CFB(iv), backend=default_backend())
+        cipher = Cipher(algorithms.AES(self.symmetric_key), modes.CFB(iv), backend=default_backend())
         encryptor = cipher.encryptor()
         
         all_grads = []
@@ -547,13 +480,16 @@ class MultiThreadReducerCentralized:
         encrypted_grads = encryptor.update(all_grads_array.tobytes()) + encryptor.finalize()
 
         encrypted_key = self.pubkey.encrypt(
-            symmetric_key,
+            self.symmetric_key,
             padding.OAEP(
                 mgf=padding.MGF1(algorithm=hashes.SHA256()),
                 algorithm=hashes.SHA256(),
                 label=None
             )
         )
+        grad_encr_time = time.time() - grad_encr_time_s
+        perf_store.add_local_grad_encryption(grad_encr_time)
+        
         # here reduce the encrypted gradients
         num_params = len(indexes)
         metadata = np.array([num_params] + indexes, dtype=np.int32)
@@ -564,96 +500,60 @@ class MultiThreadReducerCentralized:
         for param in model.parameters():
             if param.grad is not None:
                 dist.broadcast(param.grad, src=0)
-        # self._reduce_encrypted(rank, world_size, model, shapes, num_elements, 'encrypted_grads', encrypted_grads_iv_key)
-        
-        # for handle in self._handles:
-        #     handle.wait()
-        # self._handles.clear()
-        # torch.cuda.current_stream().wait_stream(self._stream)
-        
-    def master_aggregate_gradients(self, cfg, layer):
-        """Aggregate the gradients on the master node"""
-        world_size = cfg.num_partitions + 1
-        
-        all_grads = []
-        num_elements = []
-        shapes = []
-        
-        dummy_iv = os.urandom(16)
-        dummy_key = os.urandom(32)
-    
-        # with torch.no_grad():
-        for _, (name, param) in enumerate(self.model.named_parameters()):
-            all_grads.append(torch.zeros_like(param).cpu().numpy())
-            shapes.append(param.shape)
-            num_elements.append(param.numel())
-    
-        all_grads_array = np.concatenate([grad.flatten() for grad in all_grads])
-        target_tensor = torch.tensor(np.frombuffer(all_grads_array.tobytes() + dummy_iv + dummy_key, dtype=np.float32))
-        
-        for round in range(cfg.num_rounds[layer]):
-            encrypted_list = []
-            for _ in range(1, world_size):  # Exclude master itself
-                # Placeholder tensor for gathering encrypted gradients
-                encrypted_grads_iv_key = torch.zeros(target_tensor.shape[0], dtype=torch.float32)  
-                
-                # Adjust the size as needed
-                dist.recv(encrypted_grads_iv_key, src=_, tag=round)
-                encrypted_list.append(encrypted_grads_iv_key.numpy())
-              
-            decrypted_list = []
-            for encrypted in encrypted_list:
-                # Extract metadata
-                num_params = int.from_bytes(encrypted[:1], 'little')
-                metadata_size = 1 + num_params# * 4
-                indexes = np.frombuffer(encrypted[1:metadata_size], dtype=np.int32)
-                
-                gradients_size = 0
-                for i, (name, param) in enumerate(self.model.named_parameters()):
-                    if i in indexes:
-                        gradients_size += param.numel()
-                
-                offset = metadata_size + gradients_size
-                iv = encrypted[offset:offset+4].tobytes()
-                encrypted_key = encrypted[offset+4:offset+68].tobytes()
-                encrypted_grads = encrypted[metadata_size:offset]
 
-                symmetric_key = self.private_key.decrypt(
-                    encrypted_key,
-                    padding.OAEP(
-                        mgf=padding.MGF1(algorithm=hashes.SHA256()),
-                        algorithm=hashes.SHA256(),
-                        label=None
-                    )
-                )
-                
-                # Decrypt gradients
-                cipher = Cipher(algorithms.AES(symmetric_key), modes.CFB(iv), backend=default_backend())
-                decryptor = cipher.decryptor()
-                decrypted_bytes = decryptor.update(encrypted_grads.tobytes()) + decryptor.finalize()
-                decrypted_array = np.frombuffer(decrypted_bytes, dtype=np.float32)
-                decrypted_list.append(decrypted_array)
-
-            # Aggregate decrypted gradients
-            aggregated_grads = np.sum(decrypted_list, axis=0)
-
-            # Convert aggregated gradients back to tensor and set to param.grad
-            start = 0
-            # i = 0
-            index = 0
-            for param in self.model.parameters():
-                if index in indexes:
-                    grad_array = aggregated_grads[start:start + param.numel()].reshape(param.shape)
-                    param.grad = torch.tensor(grad_array).view(param.shape)
-                    start += param.numel()
-                    # i += 1
-                index+=1
-
-
-            # Broadcast the aggregated gradients from rank 0 to all workers
-            for (name, param) in self.model.named_parameters():
-                if param.grad is not None:
-                    dist.broadcast(param.grad, src=0)
+        
+    def secure_embedding_update(self, graph, user_features, id_map):
+        """
+        Send out the encrypted user embedding and destination items to the 
+        enclave in order to compute the item's neighbor aggregation securely and 
+        return the new embeddings.
+        """
+        rank = dist.get_rank()
+        world_size = dist.get_world_size()
+        
+        # create symmetric key for encryption
+        if self.symmetric_key is None:
+            self.symmetric_key = os.urandom(32)
+        iv = os.urandom(16)
+        cipher = Cipher(algorithms.AES(self.symmetric_key), modes.CFB(iv), backend=default_backend())
+        encryptor = cipher.encryptor()
+        
+        local_items = graph.nodes("news")
+        user_ids = graph.nodes("user")
+        histories = graph.edges(etype="history")
+        local_user_embeddings = user_features
+        
+        id_map_keys = torch.tensor(list(id_map["news"].keys()))
+        global_ids = torch.tensor(list(id_map["news"].values()))
+        global_news_ids = global_ids[torch.bucketize(histories[1], id_map_keys)]
+        
+        # We want to send
+        # - source user tensor (histories[0])
+        # - destination news tensr (global_news_ids)
+        # - user embeddings (user_features)
+        
+        # -- 2 RTTs --
+        
+        # 1. send total tensor sizes.    
+        total_size = torch.tensor([histories[0].shape[0], global_news_ids.shape[0], user_features.shape[0]])
+        encrypted_sized = encryptor.update(total_size.numpy().to_bytes()) + encryptor.finalize()
+        size_tensor = torch.tensor(np.frombuffer(iv + encrypted_sized), dtype=np.float32)
+        dist.send(size_tensor, dst=0, tag=1_000_000)
+        
+        # 2. send encrypted tensors
+        all_tensors = id_map_keys.numpy() + global_news_ids.numpy() + user_features.numpy()
+        iv = os.urandom(16)
+        cipher = Cipher(algorithms.AES(self.symmetric_key), modes.CFB(iv), backend=default_backend())
+        encryptor = cipher.encryptor()
+        encrypted_tensor = encryptor.update(all_tensors.tobytes()) + encryptor.finalize()
+        dist.send(torch.tensor(np.frombuffer(encrypted_tensor + iv), dtype=np.float32), dst=0, tag=1_000_001)  
+         
+        
+        # Receive the aggregated embeddings back
+        
+        dimension = 128 # TODO cfg.hidden_dim?
+        
+        
 
 def extract_node_type(name, node_types):
     tokens = name.split(".")

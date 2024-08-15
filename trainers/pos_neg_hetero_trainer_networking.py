@@ -73,18 +73,15 @@ def train(
         'user': {
             'Category': 768,
             'SubCategory': 768,
-            # 'Node2Vec': 128,
         },
         'news': {
             'News_Title_Embedding': 768,
             'News_Abstract_Embedding': 768,
             'Category': 768,
             'SubCategory': 768,
-            # 'Node2Vec': 128,
         },
         'entity': {
             'Entity_Embedding': 100,
-            # 'Node2Vec': 128,
         },
     }
     
@@ -131,6 +128,8 @@ def train_retexo(model, dataset, cfg, device, log_dir, hydra_output_dir, base_et
     not_improved = 0
     global_model = model
     
+    perf_stores = [PerformanceStore()]
+    
     model = setup_model(global_model, curr_layer, cfg.device)
     sync_model(model)
     
@@ -169,7 +168,14 @@ def train_retexo(model, dataset, cfg, device, log_dir, hydra_output_dir, base_et
     del news_dataloader
 
     # Embedding layer (0)
-    best_epoch, best_model = train_embedding_layer(model, dataset, cfg, device, log_dir, opt, pos_sample_graph, pos_blocks, neg_sample_graph, neg_blocks, val_user_blocks, val_news_blocks)
+    best_epoch, best_model = train_embedding_layer(model, dataset, cfg, device, log_dir, opt, pos_sample_graph, pos_blocks, neg_sample_graph, neg_blocks, val_user_blocks, val_news_blocks, perf_stores)
+    
+    for i, perf_store in enumerate(perf_stores):
+        print(f"Performance Store {i}:")
+        print(f"Grad Reduce Time: {perf_store.get_mean_grad_reduce_times()}")
+        print(f"Local Grad Encryption: {perf_store.get_mean_grad_encryption()}")
+
+       
         
     print("Layer 0 training finished, encoding features for next layer...")
 
@@ -218,7 +224,7 @@ def train_retexo(model, dataset, cfg, device, log_dir, hydra_output_dir, base_et
     opt = torch.optim.Adam(model.parameters(), lr=cfg.learning_rate[curr_layer])
         
         
-    best_epoch, best_model = train_gnn_layer(model, dataset, cfg, device, log_dir, curr_layer, opt, pos_sample_graph, pos_blocks, neg_sample_graph, neg_blocks, val_user_blocks, val_news_blocks, middle_user_features, middle_news_features, pos_features, neg_features)
+    best_epoch, best_model = train_gnn_layer(model, dataset, cfg, device, log_dir, curr_layer, opt, pos_sample_graph, pos_blocks, neg_sample_graph, neg_blocks, val_user_blocks, val_news_blocks, middle_user_features, middle_news_features, pos_features, neg_features, perf_stores)
         
         
     if cfg.best_model:
@@ -248,7 +254,13 @@ def train_retexo(model, dataset, cfg, device, log_dir, hydra_output_dir, base_et
     
     opt = torch.optim.Adam(model.parameters(), lr=cfg.learning_rate[curr_layer])
     
-    best_epoch, best_model = train_gnn_layer(model, dataset, cfg, device, log_dir, curr_layer, opt, final_pos_sample_graph, all_pos_blocks[1:], final_neg_sample_graph, all_neg_blocks[1:], val_user_blocks, val_news_blocks,  eval_user_features[-1],  eval_news_features[-1], final_pos_features[-1], final_neg_features[-1])
+    best_epoch, best_model = train_gnn_layer(model, dataset, cfg, device, log_dir, curr_layer, opt, final_pos_sample_graph, all_pos_blocks[1:], final_neg_sample_graph, all_neg_blocks[1:], val_user_blocks, val_news_blocks,  eval_user_features[-1],  eval_news_features[-1], final_pos_features[-1], final_neg_features[-1], perf_stores)
+    
+    for i, perf_store in enumerate(perf_stores):
+        print(f"Performance Store {i}:")
+        print(f"Grad Reduce Time: {perf_store.get_grad_reduce_time()}")
+        print(f"Local Grad Encryption: {perf_store.get_mean_grad_encryption()}")
+
         
     if cfg.best_model:
         model.load_state_dict(best_model)
@@ -290,10 +302,13 @@ def train_retexo(model, dataset, cfg, device, log_dir, hydra_output_dir, base_et
             
     return result, 0, best_epoch
 
-def train_gnn_layer(model, dataset, cfg, device, log_dir, curr_layer, opt, pos_sample_graph, pos_blocks, neg_sample_graph, neg_blocks, val_user_blocks, val_news_blocks, val_user_features, val_news_features, pos_features, neg_features):
+def train_gnn_layer(model, dataset, cfg, device, log_dir, curr_layer, opt, pos_sample_graph, pos_blocks, neg_sample_graph, neg_blocks, val_user_blocks, val_news_blocks, val_user_features, val_news_features, pos_features, neg_features, perf_stores):
     best_loss = 1000000
     best_score = 0
     best_auc = 0
+    
+    perf_store = PerformanceStore()
+    perf_stores.append(perf_store)
     
     with open("public_key.pem", "rb") as public_file:
         public_key = serialization.load_pem_public_key(
@@ -301,7 +316,7 @@ def train_gnn_layer(model, dataset, cfg, device, log_dir, curr_layer, opt, pos_s
             backend=default_backend()
         )
     reducer = MultiThreadReducerCentralized(
-        model, cfg.sleep_time, public_key, comm_volume_perf_store, cfg.measure_dv, 
+        model, cfg.sleep_time, public_key, perf_store, cfg.measure_dv, 
     )
   
     print(f"Training Layer {curr_layer}...")
@@ -332,9 +347,11 @@ def train_gnn_layer(model, dataset, cfg, device, log_dir, curr_layer, opt, pos_s
         loss.backward()
         
         with torch.no_grad():
-            reducer.secure_aggregation(model, ["user, news"], i)
-            
-        
+            aggr_time_s = time.time()
+            reducer.secure_aggregation(model, ["user, news"], i, perf_store)
+        aggr_time = time.time() - aggr_time_s
+        perf_store.add_grad_reduce_time(aggr_time)
+
         opt.step()
 
         if  (i + 1) % cfg.log_every == 0:
@@ -384,12 +401,13 @@ def train_gnn_layer(model, dataset, cfg, device, log_dir, curr_layer, opt, pos_s
         f.write(fstr)
     return best_epoch, best_model
 
-def train_embedding_layer(model, dataset, cfg, device, log_dir, opt, pos_sample_graph, pos_blocks, neg_sample_graph, neg_blocks, val_user_blocks, val_news_blocks):
+def train_embedding_layer(model, dataset, cfg, device, log_dir, opt, pos_sample_graph, pos_blocks, neg_sample_graph, neg_blocks, val_user_blocks, val_news_blocks, perf_stores):
     best_loss = 1000000
     best_score = 0
     best_auc = 0
     curr_layer = 0
     
+    perf_store = perf_stores[0]
     
     with open("public_key.pem", "rb") as public_file:
         public_key = serialization.load_pem_public_key(
@@ -453,7 +471,10 @@ def train_embedding_layer(model, dataset, cfg, device, log_dir, opt, pos_sample_
         
         # print("secure aggr")
         with torch.no_grad():
-            reducer.secure_aggregation(model, ["user, news"], i)
+            aggr_time_s = time.time()
+            reducer.secure_aggregation(model, ["user, news"], i, perf_store)
+        aggr_time = time.time() - aggr_time_s
+        perf_store.add_grad_reduce_time(aggr_time)
            
         # print("step")
         opt.step()

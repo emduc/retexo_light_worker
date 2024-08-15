@@ -112,8 +112,9 @@ def create_partitions(cfg):
         id_map = id_maps[i]
         edge_map = edge_id_maps[i]
         
-        s3_bucket = cfg.s3_bucket if cfg.s3_bucket != "" else '.'
-        s3_path = f"{s3_bucket}/partitions/{i}"
+        # s3_bucket = cfg.s3_bucket if cfg.s3_bucket != "" else '.'
+        # s3_path = f"{s3_bucket}/partitions/{i}"
+        s3_path = f"datasets/partitions/{i}"
         dataset.save_partition(sub_graph, id_map, edge_map, s3_path)
         
         # Note: if I map the edge IDs in the sessions (and I assume the loaders too) using the global to local edge ID map I can get the right edges in the new subgraph to do the evaluation. (true story)

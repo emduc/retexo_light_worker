@@ -16,9 +16,11 @@ def download_directory_from_s3(bucket, s3_directory, local_directory):
                     
                     # Create directory if it doesn't exist
                     os.makedirs(os.path.dirname(local_path), exist_ok=True)
-                    
+                    print(local_path)
+                    print(os.path.exists(local_path))
                     print(f"Downloading {s3_path} to {local_path}")
                     s3.download_file(bucket, s3_path, local_path)
+                    print(os.path.exists(local_path))
 
 # Download a file
 # bucket_name = 'mind-central'
@@ -31,12 +33,12 @@ bucket_name = 'mind-central'
 s3_dir = 'datasets'
 local_dir = './datasets'
 
-download_directory_from_s3(bucket_name, s3_dir, local_dir)
+# download_directory_from_s3(bucket_name, s3_dir, local_dir)
 
 
 def main():
     parser = argparse.ArgumentParser(description='Download a directory from S3')
-    parser.add_argument('bucket_name', type=str, default="mind-central", help='Name of the S3 bucket')
+    parser.add_argument('--bucket_name', type=str, default="mind-central", help='Name of the S3 bucket')
     parser.add_argument('--s3_dir', type=str, default='datasets', help='S3 directory to download from. To download partition 0, should be "partitions/0"')
     parser.add_argument('--local_dir', type=str, default='./datasets', help='Local directory to download to')
     

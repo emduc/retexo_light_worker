@@ -329,10 +329,10 @@ class IntermediateModel(nn.Module):
             # adapted_features = self.adapt_attention(blocks, encode_source=False)
             # input_features = adapted_features
             adapted_features = self.adapt(blocks, encode_source=False)
-            print("adapted")
+            # print("adapted")
             input_features = self.fusion(adapted_features)
             
-            print("fused")
+            # print("fused")
         else:
             assert input_features is not None
             
@@ -348,14 +348,14 @@ class IntermediateModel(nn.Module):
             # output_features[node_type] = self.batch_norms[node_type](output_features[node_type]) 
             output_features[node_type] = self.dropout(output_features[node_type])
             
-        print("densed and dropped")
+        # print("densed and dropped")
         kls = []
         for node_type in output_features:
             kls.append(kl(
                 output_features[node_type][:, :self.denser.in_features], 
                 output_features[node_type][:, self.denser.in_features:]
             ))
-        print("scoring")
+        # print("scoring")
         return self.scorer(edge_subgraph, output_features, scoring_edge), {k: v.detach() for k, v in output_features.items()}, kls
 
     def encode(self, blocks, input_features=None, for_prediction=False, encode_source=True):

@@ -1,7 +1,8 @@
 # default configuration
 
-app: "create_partitions" # hetero_pos_neg_train, partition_data, eval_user_topics, compute_topics
+app: "hetero_pos_neg_train" # hetero_pos_neg_train, create_partitions, eval_user_topics, compute_topics
 retexo: true
+rank: 1
 custom_note: "none"
 dataset_name: "mind"
 mind_version: "small"
@@ -10,8 +11,8 @@ partition_dir: ./datasets/partitions/
 s3_bucket: "s3://mind-central"
 partition_method: "random"
 train_sampler: "MultiLayerFull"
-# part_obj: "vol"
-num_partitions: 2
+part_obj: "vol"
+num_partitions: 4
 num_layers: 2
 hidden_dim: 128
 feat_hidden: 128
@@ -67,15 +68,15 @@ dataset:
   #   shuffle: true
   #   num_workers: 4
 
-# model:
-#   _target_: models.gnn.SimpleGNN
-#   _recursive_: false
-#   hidden_dim: ${hidden_dim}
-#   n_layers: ${num_layers}
-#   dropout: ${dropout}
-#   conv_layer:
-#     _target_: models.sage.CustomSAGEConv
-#     aggregator_type: "mean"
+model:
+  _target_: models.gnn.SimpleGNN
+  _recursive_: false
+  hidden_dim: ${hidden_dim}
+  n_layers: ${num_layers}
+  dropout: ${dropout}
+  conv_layer:
+    _target_: models.sage.CustomSAGEConv
+    aggregator_type: "mean"
 
 optimizer:
   _target_: torch.optim.Adam

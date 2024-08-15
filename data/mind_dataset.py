@@ -540,14 +540,15 @@ class MIND_DGL(DGLDataset):
         
         graph_path = partition_dir + \
             '/graph_{}.json'.format(self.cfg['mind_version'])
-        save_info = partition_dir + \
+        save_info_path = partition_dir + \
             '/info_{}.json'.format(self.cfg['mind_version'])
             
         if "s3://" in partition_dir:
             fs = s3fs.S3FileSystem(anon=False)
             
-            save_graphs("temp.json", [sub_graph])
-            fs.put("temp.json", graph_path)
+            temp_file = "temp.json"
+            save_graphs(temp_file, [sub_graph])
+            fs.put(temp_file, graph_path)
             
             info = {
                 'num_node': json.dumps(num_nodes),
@@ -559,11 +560,13 @@ class MIND_DGL(DGLDataset):
                 'dev_session_negative': seq_list(part_dev_session_negative),
                 'id_map': json.dumps(id_map),
             }
-            pickle.dump(info, fs.open(save_info, 'wb'))
+            pickle.dump(info, fs.open(save_info_path, 'wb'))
+            
+            os.remove(temp_file)
             
         else:
             save_graphs(graph_path, [sub_graph])
-            save_info(save_info, {
+            save_info(save_info_path, {
                 'num_node': json.dumps(num_nodes),
                 'num_link': json.dumps(num_links),
                 'reverse_etypes': json.dumps(self._reverse_etypes),

@@ -48,8 +48,9 @@ def main(cfg: DictConfig) -> None:
     #             format=serialization.PublicFormat.SubjectPublicKeyInfo
     #         )
     #     )
-    if cfg.app == "partition_data":
-        graph, _= load_data(**cfg.dataset.download, cfg=cfg)
+    if cfg.app == "load":
+        cfg.dataset_dir = "./datasets/partitions/0"
+        graph,  dataset = load_data(**cfg.dataset.download, cfg=cfg)
         return
     elif cfg.app == "compute_topics":
         topics_df = compute_topics(cfg)
@@ -73,7 +74,7 @@ def main(cfg: DictConfig) -> None:
                 torch.multiprocessing.set_start_method('spawn')
                 # master_p = mp.Process(target=train.init_master, args=(cfg, hydra_output_dir))
 
-                worker_p = mp.Process(target=train.init_process, args=(1, cfg.num_partitions + 1, cfg, hydra_output_dir))
+                worker_p = mp.Process(target=train.init_process, args=(cfg.rank, cfg.num_partitions + 1, cfg, hydra_output_dir))
                 
                 # master_p.start()
                 worker_p.start()
