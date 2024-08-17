@@ -259,7 +259,7 @@ def train_retexo(model, dataset, cfg, device, log_dir, hydra_output_dir, base_et
         print(f"Forward Pass Time: {perf_store.get_mean_forward_pass_time()}")
         print(f"Local Grad Encryption: {perf_store.get_mean_grad_encryption()}")
         print(f"Local Train Time: {perf_store.get_mean_local_train_time()}")
-        print(f"Compute Loss Time: {perf_store.get_mean_comute_loss_time()}")
+        print(f"Compute Loss Time: {perf_store.get_mean_compute_loss_time()}")
         print(f"Backward Pass Time: {perf_store.get_mean_backward_pass_time()}")
 
 
