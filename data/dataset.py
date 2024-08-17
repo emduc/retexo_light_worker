@@ -113,7 +113,7 @@ def create_partitions(cfg):
         edge_map = edge_id_maps[i]
         
         s3_bucket = cfg.s3_bucket if cfg.s3_bucket != "" else '.'
-        s3_path = f"{s3_bucket}/partitions/{i}"
+        s3_path = f"{s3_bucket}/partitions/{cfg.num_partitions}/{i}"
         # s3_path = f"datasets/partitions/{i}"
         dataset.save_partition(sub_graph, id_map, edge_map, s3_path)
         
