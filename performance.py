@@ -22,7 +22,33 @@ class PerformanceStore:
         self._cv_message_passing_t = 0
         self._cv_grad_reduce_t = 0
         self._local_grad_encryption = []
-
+        self._comute_loss_times = []
+        self._back_pass_times = []
+        
+        
+    def get_comute_loss_times(self):
+        """Get compute loss times"""
+        return self._comute_loss_times
+    
+    def add_comute_loss_time(self, time_t: float):
+        """Add compute loss time"""
+        self._comute_loss_times.append(time_t)
+        
+    def get_backward_pass_times(self):
+        """Get backward pass times"""
+        return self._back_pass_times
+    
+    def add_backward_pass_time(self, time_t: float):
+        """Add backward pass time"""
+        self._back_pass_times.append(time_t)
+        
+    def get_mean_backward_pass_time(self):
+        """Get mean backward pass time"""
+        return np.mean(self._back_pass_times)
+    
+    def get_mean_comute_loss_time(self):
+        """Get mean compute loss time"""
+        return np.mean(self._comute_loss_times)
 
     def get_forward_pass_times(self):
         """Get forward pass times"""

@@ -259,6 +259,8 @@ def train_retexo(model, dataset, cfg, device, log_dir, hydra_output_dir, base_et
         print(f"Forward Pass Time: {perf_store.get_mean_forward_pass_time()}")
         print(f"Local Grad Encryption: {perf_store.get_mean_grad_encryption()}")
         print(f"Local Train Time: {perf_store.get_mean_local_train_time()}")
+        print(f"Compute Loss Time: {perf_store.get_mean_comute_loss_time()}")
+        print(f"Backward Pass Time: {perf_store.get_mean_backward_pass_time()}")
 
 
         
@@ -329,6 +331,7 @@ def train_gnn_layer(model, dataset, cfg, device, log_dir, curr_layer, opt, pos_s
         neg_scores, neg_output_features, neg_gnn_kls = model(neg_sample_graph, neg_blocks, ('user', 'neg_train', 'news'), neg_features)
         
         perf_store.add_forward_pass_time(time.time() - forward_pass_s)
+        compute_loss_s = time.time()
 
         pred = torch.cat([pos_scores.unsqueeze(1), neg_scores.reshape(-1, cfg['gnn_neg_ratio'])], dim=1)
         score_diff = (F.sigmoid(pred)[:, 0] - F.sigmoid(pred)[:, 0:].mean(dim=1)).mean()
@@ -344,9 +347,13 @@ def train_gnn_layer(model, dataset, cfg, device, log_dir, curr_layer, opt, pos_s
         loss = pred_loss 
         wandb.log({f"train loss": loss}, step=sum(cfg.num_rounds[:curr_layer]) + (i + 1))
         wandb.log({f"score diff": score_diff}, step=sum(cfg.num_rounds[:curr_layer]) + (i + 1))
+        perf_store.add_compute_loss_time(time.time() - compute_loss_s)
+        backward_pass_s = time.time()
         
         opt.zero_grad()
         loss.backward()
+        
+        perf_store.add_backward_pass_time(time.time() - backward_pass_s)
         
         with torch.no_grad():
             aggr_time_s = time.time()
@@ -436,7 +443,8 @@ def train_embedding_layer(model, dataset, cfg, device, log_dir, opt, pos_sample_
         neg_scores, neg_output_features, _ = model(neg_sample_graph, neg_blocks, ('user', 'neg_train', 'news'))
         
         perf_store.add_forward_pass_time(time.time() - forward_pass_s)
-
+        compute_loss_s = time.time()
+        
         pred = torch.cat([pos_scores.unsqueeze(1), neg_scores.reshape(-1, cfg['gnn_neg_ratio'])], dim=1)
         score_diff = (F.sigmoid(pred)[:, 0] - F.sigmoid(pred)[:, 0:].mean(dim=1)).mean()
         
@@ -451,9 +459,13 @@ def train_embedding_layer(model, dataset, cfg, device, log_dir, opt, pos_sample_
         loss = pred_loss 
         wandb.log({f"train loss": loss}, step=(i + 1))
         wandb.log({f"score diff": score_diff}, step=(i + 1))
+        perf_store.add_compute_loss_time(time.time() - compute_loss_s)
+        backward_pass_s = time.time()
         
         opt.zero_grad()
         loss.backward()
+        
+        perf_store.add_backward_pass_time(time.time() - backward_pass_s)
         
         num_nodes = {}
         for t in ["user", "news"]:
