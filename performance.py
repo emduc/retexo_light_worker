@@ -46,9 +46,9 @@ class PerformanceStore:
         """Get mean backward pass time"""
         return np.mean(self._back_pass_times)
     
-    def get_mean_comute_loss_time(self):
+    def get_mean_compute_loss_time(self):
         """Get mean compute loss time"""
-        return np.mean(self._comute_loss_times)
+        return np.mean(self._compute_loss_times)
 
     def get_forward_pass_times(self):
         """Get forward pass times"""
