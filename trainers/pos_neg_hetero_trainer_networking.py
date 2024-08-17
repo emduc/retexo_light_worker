@@ -135,6 +135,8 @@ def train_retexo(model, dataset, cfg, device, log_dir, hydra_output_dir, base_et
     
     opt = torch.optim.Adam(model.parameters(), lr=cfg.learning_rate[0])
     
+    load_time_s = time.time()
+    
     # all train blocks (for layer-wise forward passes)
     full_pos_dataloader, full_neg_dataloader = dataset.get_gnn_train_loader(base_etypes, 2)
     assert(len(full_pos_dataloader) == len(full_neg_dataloader) == 1)
@@ -166,19 +168,14 @@ def train_retexo(model, dataset, cfg, device, log_dir, hydra_output_dir, base_et
     
     del user_dataloader
     del news_dataloader
+    
+    load_time = time.time() - load_time_s
+    print(f"Loaded all data in: {load_time}s")
 
     # Embedding layer (0)
     best_epoch, best_model = train_embedding_layer(model, dataset, cfg, device, log_dir, opt, pos_sample_graph, pos_blocks, neg_sample_graph, neg_blocks, val_user_blocks, val_news_blocks, perf_stores)
-    
-    for i, perf_store in enumerate(perf_stores):
-        print(f"Performance Store {i}:")
-        print(f"Grad Reduce Time: {perf_store.get_mean_grad_reduce_times()}")
-        print(f"Local Grad Encryption: {perf_store.get_mean_grad_encryption()}")
-
-       
-        
+             
     print("Layer 0 training finished, encoding features for next layer...")
-
       
     if cfg.best_model:
         model.load_state_dict(best_model)
@@ -258,8 +255,11 @@ def train_retexo(model, dataset, cfg, device, log_dir, hydra_output_dir, base_et
     
     for i, perf_store in enumerate(perf_stores):
         print(f"Performance Store {i}:")
-        print(f"Grad Reduce Time: {perf_store.get_grad_reduce_time()}")
+        print(f"Grad Reduce Time: {perf_store.get_mean_grad_reduce_times()}")
+        print(f"Forward Pass Time: {perf_store.get_mean_forward_pass_time()}")
         print(f"Local Grad Encryption: {perf_store.get_mean_grad_encryption()}")
+        print(f"Local Train Time: {perf_store.get_mean_local_train_time()}")
+
 
         
     if cfg.best_model:
@@ -323,10 +323,12 @@ def train_gnn_layer(model, dataset, cfg, device, log_dir, curr_layer, opt, pos_s
     for i in range(cfg.num_rounds[curr_layer]):
         model.train()
         
-        iter_start_time = time.time()
+        forward_pass_s = time.time()
 
         pos_scores, pos_output_features, pos_gnn_kls = model(pos_sample_graph, pos_blocks, ('user', 'pos_train', 'news'), pos_features)
         neg_scores, neg_output_features, neg_gnn_kls = model(neg_sample_graph, neg_blocks, ('user', 'neg_train', 'news'), neg_features)
+        
+        perf_store.add_forward_pass_time(time.time() - forward_pass_s)
 
         pred = torch.cat([pos_scores.unsqueeze(1), neg_scores.reshape(-1, cfg['gnn_neg_ratio'])], dim=1)
         score_diff = (F.sigmoid(pred)[:, 0] - F.sigmoid(pred)[:, 0:].mean(dim=1)).mean()
@@ -353,6 +355,8 @@ def train_gnn_layer(model, dataset, cfg, device, log_dir, curr_layer, opt, pos_s
         perf_store.add_grad_reduce_time(aggr_time)
 
         opt.step()
+        
+        perf_store.add_local_train_time(time.time() - forward_pass_s)
 
         if  (i + 1) % cfg.log_every == 0:
             if cfg.print_all:
@@ -420,31 +424,22 @@ def train_embedding_layer(model, dataset, cfg, device, log_dir, opt, pos_sample_
         
     print("Starting training retexo, Layer 0...")
     for i in range(cfg.num_rounds[0]):
-        # print("Training mode")
         model.train()
         
-        # print("start time")
-        iter_start_time = time.time()
+        forward_pass_s = time.time()
         
-        # print("moving to device")
         pos_sample_graph = pos_sample_graph.to(device)
-        # print("moving each block to device")
         pos_blocks = [b.to(device) for b in pos_blocks]
-        # print("call model on pos edges")
         pos_scores, pos_output_features, _ = model(pos_sample_graph, pos_blocks, ('user', 'pos_train', 'news'))
-        # print("moving to device")
         neg_sample_graph = neg_sample_graph.to(device)
-        # print("moving each block to device")
         neg_blocks = [b.to(device) for b in neg_blocks]
-        # print("call model on neg edges")
         neg_scores, neg_output_features, _ = model(neg_sample_graph, neg_blocks, ('user', 'neg_train', 'news'))
+        
+        perf_store.add_forward_pass_time(time.time() - forward_pass_s)
 
-        # print("cat predictions")
         pred = torch.cat([pos_scores.unsqueeze(1), neg_scores.reshape(-1, cfg['gnn_neg_ratio'])], dim=1)
-        # print("score")
         score_diff = (F.sigmoid(pred)[:, 0] - F.sigmoid(pred)[:, 0:].mean(dim=1)).mean()
         
-        # print("loss")
         if cfg['loss_func'] == 'log_sofmax':
             pred_loss = (-torch.log_softmax(pred, dim=1).select(1, 0)).mean()
         elif cfg['loss_func'] == 'cross_entropy':
@@ -457,7 +452,6 @@ def train_embedding_layer(model, dataset, cfg, device, log_dir, opt, pos_sample_
         wandb.log({f"train loss": loss}, step=(i + 1))
         wandb.log({f"score diff": score_diff}, step=(i + 1))
         
-        # print("backward")
         opt.zero_grad()
         loss.backward()
         
@@ -478,6 +472,8 @@ def train_embedding_layer(model, dataset, cfg, device, log_dir, opt, pos_sample_
            
         # print("step")
         opt.step()
+        
+        perf_store.add_local_train_time(time.time() - forward_pass_s)
         
         if  (i + 1) % cfg.log_every == 0:
             if cfg.print_all:
@@ -545,6 +541,7 @@ def train_end2end(model, dataset, cfg, device, log_dir, hydra_output_dir, base_e
     print("Starting training End-2-End...")
     for i in range(cfg.num_rounds[0]):
         model.train()
+        forward_pass_s = time.time()
 
         iter_start_time = time.time()
         pos_sample_graph = pos_sample_graph.to(device)

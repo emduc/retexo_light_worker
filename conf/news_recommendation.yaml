@@ -12,7 +12,7 @@ s3_bucket: "s3://mind-central"
 partition_method: "random"
 train_sampler: "MultiLayerFull"
 part_obj: "vol"
-num_partitions: 4
+num_partitions: 1
 num_layers: 2
 hidden_dim: 128
 feat_hidden: 128

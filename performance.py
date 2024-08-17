@@ -12,6 +12,7 @@ class PerformanceStore:
 
     def __init__(self):
         self._local_train_times = []
+        self._forward_pass_times = []
         self._local_val_times = []
         self._grad_reduce_times = []
         self._val_metric_reduce_times = []
@@ -22,6 +23,22 @@ class PerformanceStore:
         self._cv_grad_reduce_t = 0
         self._local_grad_encryption = []
 
+
+    def get_forward_pass_times(self):
+        """Get forward pass times"""
+        return self._forward_pass_times
+    
+    def get_mean_forward_pass_time(self):
+        """Get mean forward pass time"""
+        return np.mean(self._forward_pass_times)
+    
+    def get_mean_local_train_time(self):
+        """Get mean local train time"""
+        return np.mean(self._local_train_times)
+    
+    def add_forward_pass_time(self, time_t: float):
+        """Add forward pass time"""
+        self._forward_pass_times.append(time_t)
 
     def get_mean_grad_encryption(self):  
         """Get mean grad encryption time"""  

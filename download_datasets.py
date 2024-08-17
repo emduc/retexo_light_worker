@@ -39,7 +39,7 @@ local_dir = './datasets'
 def main():
     parser = argparse.ArgumentParser(description='Download a directory from S3')
     parser.add_argument('--bucket_name', type=str, default="mind-central", help='Name of the S3 bucket')
-    parser.add_argument('--s3_dir', type=str, default='datasets', help='S3 directory to download from. To download partition 0, should be "partitions/0"')
+    parser.add_argument('--s3_dir', type=str, default='datasets', help='S3 directory to download from. To download partition 0, should be "partition_0"')
     parser.add_argument('--local_dir', type=str, default='./datasets', help='Local directory to download to')
     
     args = parser.parse_args()
