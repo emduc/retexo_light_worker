@@ -22,8 +22,8 @@ torchmetrics==1.4.0
 tqdm==4.66.4
 wandb==0.17.2
 pydantic==2.7.1
-boto3==1.35.0
-s3fs==2024.6.1
+boto3
+s3fs
 
 
 # WARNING: Dgl + pytorch broke because of torchdata 0.8.0, please us pip install --no-deps torchdata==0.7.0
