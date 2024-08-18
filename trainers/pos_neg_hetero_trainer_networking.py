@@ -681,8 +681,8 @@ def init_master(cfg, hydra_output_dir):
 def init_process(rank, world_size, cfg, hydra_output_dir):
     """Initialize the distributed environment"""
     
-    addr = cfg.distributed.master_addr
-    port = cfg.distributed.master_port
+    addr = cfg.master_addr
+    port = cfg.master_port
 
     os.environ["MASTER_ADDR"] = addr
     os.environ["MASTER_PORT"] = port
