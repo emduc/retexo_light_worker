@@ -18,7 +18,7 @@ hidden_dim: 128
 feat_hidden: 128
 adaptor_hidden: 256
 loss_func: "cross_entropy"
-num_rounds: [20, 20, 20]
+num_rounds: [200, 200, 200]
 early_stop: 50
 layer_early_stop: [500, 500, 500]
 gnn_neg_ratio: 4
@@ -28,7 +28,7 @@ learning_rate: [5e-4, 1e-3, 1e-3]
 # momentum: 0.9
 weight_decay: 0.0005
 eval_every: [5, 5, 5]
-eval_after: [9, 9, 9]
+eval_after: [200, 200, 200]
 val_size: 10
 wandb_mode: "offline"
 cross_score: false
