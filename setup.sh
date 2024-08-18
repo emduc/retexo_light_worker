@@ -28,8 +28,7 @@ pip install --no-deps torchdata==0.7.0
 export GLOO_SOCKET_IFNAME=ens5
 
 # AWS CLI (this is dynamic and asks for access and secret keys)
-aws configure
-
 if [ "$run_download_script" == "true" ]; then
+    aws configure
     python download_datasets.py --s3_dir partitions/$world_size/$partition_ID/
 fi
