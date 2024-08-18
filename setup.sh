@@ -1,5 +1,4 @@
 #!/bin/bash
-sudo yum install -y python3
 curl -O https://bootstrap.pypa.io/get-pip.py
 python3 get-pip.py --user
 
