@@ -638,8 +638,8 @@ def eval(etypes, mind_dgl, out_dim, device, model, epoch, cfg):
 def init_master(cfg, hydra_output_dir):
     """"Initialize the master process"""
     
-    os.environ["MASTER_ADDR"] = cfg.distributed.master_addr
-    os.environ["MASTER_PORT"] = cfg.distributed.master_port
+    os.environ["MASTER_ADDR"] = cfg.master_addr
+    os.environ["MASTER_PORT"] = cfg.master_port
     dist.init_process_group(backend='gloo', rank=0, world_size=cfg.num_partitions+1)
     
     # seed_everything(cfg.seed)
