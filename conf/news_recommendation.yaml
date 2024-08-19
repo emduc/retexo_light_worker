@@ -28,7 +28,7 @@ learning_rate: [5e-4, 1e-3, 1e-3]
 # momentum: 0.9
 weight_decay: 0.0005
 eval_every: [5, 5, 5]
-eval_after: [200, 200, 200]
+eval_after: [194, 194, 194]
 val_size: 10
 wandb_mode: "offline"
 cross_score: false
