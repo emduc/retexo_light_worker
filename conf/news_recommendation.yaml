@@ -86,7 +86,7 @@ distributed:
   backend: "gloo"
   init_method: "tcp://"
 master_addr: 172.31.2.95
-master_port: "10101"
+master_port: "10103"
 
 task:
   _target_: tasks.node_classification.NodeClassificationTask
