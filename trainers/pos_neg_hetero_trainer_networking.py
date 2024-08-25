@@ -308,6 +308,7 @@ def train_gnn_layer(model, dataset, cfg, device, log_dir, curr_layer, opt, pos_s
     best_loss = 1000000
     best_score = 0
     best_auc = 0
+    best_model = None
     
     perf_store = PerformanceStore()
     perf_stores.append(perf_store)
@@ -404,6 +405,12 @@ def train_gnn_layer(model, dataset, cfg, device, log_dir, curr_layer, opt, pos_s
                 best_score = score_diff
                 best_epoch = i
                 best_model = deepcopy(model.state_dict())     
+                
+    if best_model is None:
+        best_loss = loss
+        best_score = score_diff
+        best_epoch = i
+        best_model = deepcopy(model.state_dict())
     
      
     fstr = f'Ending layer {curr_layer} after {i} rounds with auc {best_auc} loss {best_loss} and score {best_score} (round {best_epoch})\n'
@@ -417,7 +424,7 @@ def train_embedding_layer(model, dataset, cfg, device, log_dir, opt, pos_sample_
     best_score = 0
     best_auc = 0
     curr_layer = 0
-    
+    best_model = None
     perf_store = perf_stores[0]
     
     with open("public_key.pem", "rb") as public_file:
@@ -524,8 +531,13 @@ def train_embedding_layer(model, dataset, cfg, device, log_dir, opt, pos_sample_
                 best_loss = loss
                 best_score = score_diff
                 best_epoch = i
-                best_model = deepcopy(model.state_dict())            
-
+                best_model = deepcopy(model.state_dict())
+                
+    if best_model is None:
+        best_loss = loss
+        best_score = score_diff
+        best_epoch = i
+        best_model = deepcopy(model.state_dict())
         
     fstr = f'Ending layer {curr_layer} after {i} rounds with auc {best_auc} loss {best_loss} and score {best_score} (round {best_epoch})\n'
     print(fstr)
