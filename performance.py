@@ -86,15 +86,15 @@ class PerformanceStore:
         """Add local grad encryption time"""
         self._local_grad_encryption.append(time_t)
         
-    def get_std_local_train_times(self):
+    def get_std_local_train_time(self):
         """Get std local train times"""
         return np.std(self._local_train_times)
         
-    def get_std_compute_loss_times(self):
+    def get_std_compute_loss_time(self):
         """Get std compute loss times"""
         return np.std(self._compute_loss_times)
     
-    def get_std_backward_pass_times(self):
+    def get_std_backward_pass_time(self):
         """Get std backward pass times"""
         return np.std(self._back_pass_times)
     
