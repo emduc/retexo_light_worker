@@ -255,12 +255,12 @@ def train_retexo(model, dataset, cfg, device, log_dir, hydra_output_dir, base_et
     
     for i, perf_store in enumerate(perf_stores):
         print(f"Performance Store {i}:")
-        print(f"Grad Reduce Time: {perf_store.get_mean_grad_reduce_times()}")
-        print(f"Forward Pass Time: {perf_store.get_mean_forward_pass_time()}")
-        print(f"Local Grad Encryption: {perf_store.get_mean_grad_encryption()}")
-        print(f"Local Train Time: {perf_store.get_mean_local_train_time()}")
-        print(f"Compute Loss Time: {perf_store.get_mean_compute_loss_time()}")
-        print(f"Backward Pass Time: {perf_store.get_mean_backward_pass_time()}")
+        print(f"Grad Reduce Time: {perf_store.get_mean_grad_reduce_times()}, STD: {perf_store.get_std_grad_reduce_times()}")
+        print(f"Forward Pass Time: {perf_store.get_mean_forward_pass_time()}, STD: {perf_store.get_std_forward_pass_time()}")
+        print(f"Local Grad Encryption: {perf_store.get_mean_grad_encryption()}, STD: {perf_store.get_std_grad_encryption()}")
+        print(f"Local Train Time: {perf_store.get_mean_local_train_time()}, STD: {perf_store.get_std_local_train_time()}")
+        print(f"Compute Loss Time: {perf_store.get_mean_compute_loss_time()}, STD: {perf_store.get_std_compute_loss_time()}")
+        print(f"Backward Pass Time: {perf_store.get_mean_backward_pass_time()}, STD: {perf_store.get_std_backward_pass_time()}")
 
 
         

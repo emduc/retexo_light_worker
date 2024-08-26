@@ -70,10 +70,34 @@ class PerformanceStore:
         """Get mean grad encryption time"""  
         return np.mean(self._local_grad_encryption)
     
+    def get_std_grad_reduce_times(self):
+        """Get std grad reduce times"""
+        return np.std(self._grad_reduce_times)
+    
+    def get_std_forward_pass_time(self):
+        """Get std forward pass time"""
+        return np.std(self._forward_pass_times)
+    
+    def get_std_grad_encryption(self):
+        """Get std grad encryption time"""
+        return np.std(self._local_grad_encryption)
+    
     def add_local_grad_encryption(self, time_t: float):
         """Add local grad encryption time"""
         self._local_grad_encryption.append(time_t)
         
+    def get_std_local_train_times(self):
+        """Get std local train times"""
+        return np.std(self._local_train_times)
+        
+    def get_std_compute_loss_times(self):
+        """Get std compute loss times"""
+        return np.std(self._compute_loss_times)
+    
+    def get_std_backward_pass_times(self):
+        """Get std backward pass times"""
+        return np.std(self._back_pass_times)
+    
     def get_communication_volume(self):
         """Get communication volume"""
         return int(self._cv_grad_reduce_t + self._cv_message_passing_t)
