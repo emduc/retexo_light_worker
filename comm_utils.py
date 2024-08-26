@@ -431,6 +431,43 @@ class MultiThreadReducerCentralized:
         self._handles.clear()
         torch.cuda.current_stream().wait_stream(self._stream)
         
+    def aggregate_plaingrads(self, model: nn.Module, node_types, round, perf_stores):
+        """Aggregate the model by sending the gradients to the controller node 
+        without worker pool. """
+        rank = dist.get_rank()
+        world_size = dist.get_world_size()
+        
+                
+        all_grads = []
+        shapes = []
+        num_elements = []
+        indexes = []
+        
+        for i, (name, param) in enumerate(model.named_parameters()):
+            if param.grad is None:
+                continue
+            type = extract_node_type(name, node_types)
+            param.grad = param.grad * 1. 
+            
+            all_grads.append(param.grad.cpu().numpy())
+            shapes.append(param.grad.shape)
+            num_elements.append(param.grad.numel())
+            indexes.append(i)
+            
+        all_grads_array = (np.concatenate([grad.flatten() for grad in all_grads])).tobytes()
+
+        
+        # here reduce the encrypted gradients
+        num_params = len(indexes)
+        metadata = np.array([num_params] + indexes, dtype=np.int32)
+        metadata_bytes = metadata.tobytes()
+        indexes_grads = torch.tensor(np.frombuffer(metadata_bytes + all_grads_array, dtype=np.float32))
+        dist.send(indexes_grads, dst=0, tag=round)
+        
+        for param in model.parameters():
+            if param.grad is not None:
+                dist.broadcast(param.grad, src=0)
+        
     def aggregate_hetero_grad(self, model: nn.Module, node_types, all_num_nodes):
         """Aggregate the model across workers using thread pool"""
         rank = dist.get_rank()

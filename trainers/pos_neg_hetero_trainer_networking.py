@@ -358,7 +358,11 @@ def train_gnn_layer(model, dataset, cfg, device, log_dir, curr_layer, opt, pos_s
         
         with torch.no_grad():
             aggr_time_s = time.time()
-            reducer.secure_aggregation(model, ["user, news"], i, perf_store)
+            if cfg.enclave:
+                reducer.secure_aggregation(model, ["user, news"], i, perf_store)
+            else:
+                reducer.aggregate_plaingrads(model, ["user, news"], i, perf_store)
+                
         aggr_time = time.time() - aggr_time_s
         perf_store.add_grad_reduce_time(aggr_time)
 
@@ -485,7 +489,11 @@ def train_embedding_layer(model, dataset, cfg, device, log_dir, opt, pos_sample_
         # print("secure aggr")
         with torch.no_grad():
             aggr_time_s = time.time()
-            reducer.secure_aggregation(model, ["user, news"], i, perf_store)
+            if cfg.enclave:
+                reducer.secure_aggregation(model, ["user, news"], i, perf_store)
+            else:
+                reducer.aggregate_plaingrads(model, ["user, news"], i, perf_store)
+                
         aggr_time = time.time() - aggr_time_s
         perf_store.add_grad_reduce_time(aggr_time)
            
