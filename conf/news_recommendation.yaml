@@ -3,6 +3,7 @@
 app: "hetero_pos_neg_train" # hetero_pos_neg_train, create_partitions, eval_user_topics, compute_topics
 retexo: true
 rank: 1
+enclave: false
 custom_note: "none"
 dataset_name: "mind"
 mind_version: "small"
@@ -14,8 +15,8 @@ train_sampler: "MultiLayerFull"
 part_obj: "vol"
 num_partitions: 1
 num_layers: 2
-hidden_dim: 128
-feat_hidden: 128
+hidden_dim: 256
+feat_hidden: 256
 adaptor_hidden: 256
 loss_func: "cross_entropy"
 num_rounds: [200, 200, 200]

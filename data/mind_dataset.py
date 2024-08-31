@@ -180,8 +180,8 @@ class MIND_DGL(DGLDataset):
         _subcategories = pd.concat([train_news_df, dev_news_df], axis=0)['SubCategory'].unique()
         _news_subcategory_map = {name: i for i, name in enumerate(_subcategories)}  # subcategory -> subcateid
 
-        _embedding['news']['News_Title_Embedding'] = torch.zeros([self._num_node['news'], 768])
-        _embedding['news']['News_Abstract_Embedding'] = torch.zeros([self._num_node['news'], 768])
+        _embedding['news']['News_Title_Embedding'] = torch.zeros([self._num_node['news'], 384])
+        _embedding['news']['News_Abstract_Embedding'] = torch.zeros([self._num_node['news'], 384])
         _news_category = torch.zeros([self._num_node['news']])
         _news_subcategory = torch.zeros([self._num_node['news']])
         _empty_news_emb = 0
@@ -401,8 +401,8 @@ class MIND_DGL(DGLDataset):
         _subcategories = pd.concat([train_news_df, dev_news_df], axis=0)['SubCategory'].unique()
         _news_subcategory_map = {name: i for i, name in enumerate(_subcategories)}  # subcategory -> subcateid
 
-        _embedding['news']['News_Title_Embedding'] = torch.zeros([self._num_node['news'], 768])
-        _embedding['news']['News_Abstract_Embedding'] = torch.zeros([self._num_node['news'], 768])
+        _embedding['news']['News_Title_Embedding'] = torch.zeros([self._num_node['news'], 384])
+        _embedding['news']['News_Abstract_Embedding'] = torch.zeros([self._num_node['news'], 384])
         _news_category = torch.zeros([self._num_node['news']])
         _news_subcategory = torch.zeros([self._num_node['news']])
         _empty_news_emb = 0

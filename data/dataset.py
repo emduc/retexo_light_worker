@@ -107,8 +107,13 @@ def create_partitions(cfg):
     shuffled_users = np.random.permutation(user_nodes.numpy())
     graph_partitions, id_maps, edge_id_maps = _partition_graph(graph, shuffled_users, num_partitions)
     
-    for i in range(cfg.num_partitions):
+    items_per_partition = []
+    
+    for i in range(2, cfg.num_partitions):
         sub_graph = graph_partitions[i]
+        items_per_partition.append(sub_graph.num_nodes("news"))
+        
+        print(f"Partition {i}: {sub_graph.num_nodes('user')} users, {sub_graph.num_nodes('news')} news, {sub_graph.num_edges()} edges")
         id_map = id_maps[i]
         edge_map = edge_id_maps[i]
         
@@ -117,4 +122,11 @@ def create_partitions(cfg):
         # s3_path = f"datasets/partitions/{i}"
         dataset.save_partition(sub_graph, id_map, edge_map, s3_path)
         
+
+        
+        
+        
         # Note: if I map the edge IDs in the sessions (and I assume the loaders too) using the global to local edge ID map I can get the right edges in the new subgraph to do the evaluation. (true story)
+        
+    print("MEAN = ", np.mean(items_per_partition))
+    print("STD = ", np.std(items_per_partition))

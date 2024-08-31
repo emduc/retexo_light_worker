@@ -71,14 +71,14 @@ def train(
     base_etypes = ['history', 'history_r', 'ne_link', 'ne_link_r', 'ue_link', 'ue_link_r']
     node_emb_meta = {
         'user': {
-            'Category': 768,
-            'SubCategory': 768,
+            'Category': 384,
+            'SubCategory': 384,
         },
         'news': {
-            'News_Title_Embedding': 768,
-            'News_Abstract_Embedding': 768,
-            'Category': 768,
-            'SubCategory': 768,
+            'News_Title_Embedding': 384,
+            'News_Abstract_Embedding': 384,
+            'Category': 384,
+            'SubCategory': 384,
         },
         'entity': {
             'Entity_Embedding': 100,
@@ -666,15 +666,15 @@ def init_master(cfg, hydra_output_dir):
     
     node_emb_meta = {
         'user': {
-            'Category': 768,
-            'SubCategory': 768,
+            'Category': 384,
+            'SubCategory': 384,
             # 'Node2Vec': 128,
         },
         'news': {
-            'News_Title_Embedding': 768,
-            'News_Abstract_Embedding': 768,
-            'Category': 768,
-            'SubCategory': 768,
+            'News_Title_Embedding': 384,
+            'News_Abstract_Embedding': 384,
+            'Category': 384,
+            'SubCategory': 384,
             # 'Node2Vec': 128,
         },
         'entity': {
